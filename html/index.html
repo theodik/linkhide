@@ -1,0 +1,90 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>go</title>
+<link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" type="text/css">
+<style>
+    #app { padding-top: 8vh }
+    #app .url {
+      width: 100%;
+      font-size: x-large;
+      border: 1px rgba(0, 0, 0, 0.4) solid;
+    }
+    #app .shortened { border: 0; font-size: large }
+    .result { display: flex; text-align: center; }
+    .result input, .result .error {
+      flex: 1;
+      margin-left: 1vw;
+      margin-right: 1vw;
+      margin-top: 1vw;
+      font-size: xx-large;
+      text-align: center;
+    }
+    .result span { color: #D8000C }
+</style>
+<script src="https://unpkg.com/vue"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+<div id="app">
+  <input type="text" v-model="url" class="url" placeholder="https://minecraft.project-nemesis.cz/pripojit-se/" maxlength="2000">
+  <div class="result">
+    <input v-if="result" ref="result" type="text" readonly :value="result" onfocus="this.select()" onmouseup="return false">
+    <span class="error" v-if="error">Could not create link. <a href="#" @click.prevent="createLink()">Try again.</a></span>
+  </div>
+</div>
+
+<script>
+  var _a  = document.createElement('a')
+  function isValidURL(str) {
+     _a.href = str
+     return (_a.host && _a.host != window.location.host)
+  }
+
+  var app = new Vue({
+    el: "#app",
+    data: {
+      url: "",
+      result: null,
+      error: false
+    },
+    watch: {
+      url: function(newUrl) {
+        if (isValidURL(newUrl)) return this.createLink()
+        this.result = null
+      }
+    },
+    methods: {
+      createLink: debounce(function(){
+        var self = this
+        self.error = false
+        axios.post('/create', {
+          url: this.url
+        }, {
+          validateStatus: function(status) { return status == 201 }
+        }).then(function(response) {
+          self.result = response.data.shortUrl
+          self.$nextTick(function(){self.$refs.result.focus()})
+        }).catch(function(){ self.error = true })
+      }, 500)
+    }
+  })
+
+  // Returns a function, that, as long as it continues to be invoked, will not
+  // be triggered. The function will be called after it stops being called for
+  // N milliseconds. If `immediate` is passed, trigger the function on the
+  // leading edge, instead of the trailing.
+  function debounce(func, wait, immediate) {
+  	var timeout;
+  	return function() {
+  		var context = this, args = arguments;
+  		var later = function() {
+  			timeout = null;
+  			if (!immediate) func.apply(context, args);
+  		};
+  		var callNow = immediate && !timeout;
+  		clearTimeout(timeout);
+  		timeout = setTimeout(later, wait);
+  		if (callNow) func.apply(context, args);
+  	};
+  };
+</script>
